@@ -1,0 +1,24 @@
+{
+  "name": "blockchain-node-generic-1",
+  "version": "1.0.0",
+  "description": "no framework simple blockchain app with express",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/buffaloo/blockchain-projects/blockchain-node-generic-1"
+  },
+  "keywords": [
+    "blockchain",
+    "dyrlbit",
+    "coin",
+    "express"
+  ],
+  "author": "jim mitchell",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.16.2"
+  }
+}
