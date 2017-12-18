@@ -17,6 +17,7 @@ const sha256 = require('js-sha256');
 const request = require('request');
 
 var miner_address = 'peer2';
+const port = 3001;
 var other_address = 'peer1';
 var thisNodesTransactions = [];
 var peer_nodes = {
@@ -24,7 +25,7 @@ var peer_nodes = {
 	'peer2': 'http://localhost:3001'
 };
 
-const port = 3000;
+
 
 var blockChain = [];
 
@@ -58,34 +59,36 @@ class Block {
 
 function createGenesisBlock() {
   return new Block(0, Date.now(), {
-    'proof-of-work': 9,
-    'transactions': null
+    proof_of_work: 9,
+    transactions: null,
+    createdbynode: port
   }, '0');
 }
 
-
-
 function findNewChain(callback) {
-  request(peer_nodes[other_address] + '/blocks', function (error, response, body) {
-    if (!error) {
-      var other_chain = JSON.parse(body).map((element) => {
-        return new Block(element.index, element.timestamp, element.data, element.previous_hash);
-      });
+	// query for the global blockchain
+	request(peer_nodes[other_address] + '/blocks', function (error, response, body) {
+	if (!error) {
+	  var other_chain = JSON.parse(body).map((element) => {
+	    return new Block(element.index, element.timestamp, element.data, element.previous_hash);
+	  });
 
-      if (blockChain.length < other_chain.length) {
-        blockChain = other_chain;
-      }
-    }
+	  if (blockChain.length < other_chain.length) {
+	    blockChain = other_chain;
+	  }
+	}
 
-    if (callback) {
-      callback();
-    }
-  });
+	if (callback) {
+	  callback();
+	}
+	});
 }
 
+// look for and sync with the global blockchain variable from other nodes
 findNewChain(() => {
 	console.log('findNewChain');
 	if (blockChain.length == 0) {
+		// push the genesis block onto the empty blockchain		
 		blockChain.push(createGenesisBlock());
 	}
 });
@@ -115,10 +118,11 @@ app.get('/give', (req, res) => {
 
   thisNodesTransactions.push(new_txn);
 
-  res.send(JSON.stringify(this_nodes_transactions));
+  res.send(JSON.stringify(thisNodesTransactions));
 });
 
 app.get('/blocks', (req, res) => {
+	console.log('blocks request ' +  req.get('host') + req.originalUrl);
 
 	  var chainToSend = [];
 	  for (var i = 0; i < blockChain.length; i++) {
@@ -128,58 +132,65 @@ app.get('/blocks', (req, res) => {
 	  res.json(chainToSend);	
 
 //  Jim, why not do this in lieu of the above?
-	  res.json(blockChain.map((block) => {
-	  return block.toJSON();
-	}));
+	  //res.json(blockChain.map((block) => {
+	  //return block.toJSON();
+	//}));
 });
 
 app.get('/mine', (req, res) => {
-  
-  find_new_chain(() => {
-    
-    // create the proof for this block
-    var last_block = blockChain[blockChain.length - 1];
-    var last_proof = last_block.data['proof-of-work'];
-    var proof = proofOfWork(last_proof);
+    console.log('mine');  
+	findNewChain(() => {
 
-    //  the miner of this block gets to add his newly acquired funds to the block's transactions
-    thisNodesTransactions.push({ 
-    	'from': 'network', 
-    	'to': miner_address, 
-    	'amount': 25, 
-    	'timestamp': Date.now() 
-    });
+	// create the proof for this block
+	var last_block = blockChain[blockChain.length - 1];
+	var last_proof = last_block.data.proof_of_work;
+	console.log('last_block.data.proof_of_work =' + last_block.data.proof_of_work);
+	var proof = proofOfWork(last_proof);
 
-    //  create the new blocks data including proof and transactions
-    var new_block_data = {
-      'proof-of-work': proof,
-      'transactions': thisNodesTransactions
-    };
+	//  the miner of this block gets to add his newly acquired funds to the block's transactions
+	thisNodesTransactions.push({ 
+		'from': 'network', 
+		'to': miner_address, 
+		'amount': 25, 
+		'timestamp': Date.now() 
+	});
 
-    thisNodesTransactions = [];    
+	//  create the new blocks data including proof and transactions
+	var new_block_data = {
+		proof_of_work: proof,
+		transactions: thisNodesTransactions
+	};
 
-    //  create the new block
-    var new_block_index = last_block.index + 1;
-    var new_block_timestamp = Date.now();
-    var last_block_hash = last_block.hash;
+	thisNodesTransactions = [];    
 
-    var mined_block = new Block(
-      new_block_index,
-      new_block_timestamp,
-      new_block_data,
-      last_block_hash
-    );
+	//  create the new block
+	var new_block_index = last_block.index + 1;
+	var new_block_timestamp = Date.now();
+	var last_block_hash = last_block.hash;
 
-    blockChain.push(mined_block);
+	var mined_block = new Block(
+	new_block_index,
+	new_block_timestamp,
+	new_block_data,
+	last_block_hash
+	);
 
-    res.json(blockChain.map((block) => {
-      return block.toJSON();
-    }));
+	blockChain.push(mined_block);
 
-  });
+	res.json(blockChain.map((block) => {
+	return block.toJSON();
+	}));
+
+	});
 });
 
 function proofOfWork(last_proof) {
+	if (Number.isNaN(last_proof))
+	{
+		console.log("Error in proofOfWork");
+		debugger;
+	}
+	
   var incrementor = last_proof + 1;
   while (incrementor % 9 != 0 || incrementor % last_proof != 0) {
     incrementor += 1;

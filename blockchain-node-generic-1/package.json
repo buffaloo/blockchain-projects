@@ -19,6 +19,8 @@
   "author": "jim mitchell",
   "license": "ISC",
   "dependencies": {
-    "express": "^4.16.2"
+    "express": "^4.16.2",
+    "js-sha256": "^0.8.0",
+    "request": "^2.83.0"
   }
 }
